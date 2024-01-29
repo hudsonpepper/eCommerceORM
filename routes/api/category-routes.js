@@ -75,6 +75,7 @@ router.put('/:id', async (req, res) => {
       const response = await Category.update(body, {
         where: { id: req.params.id }
       });
+      
       if (!response) {
         res.status(500).json({ message: "No server response" })
       }
@@ -100,7 +101,7 @@ router.delete('/:id', async (req, res) => {
     });
 
     if (!response) {
-      res.status(404).json({ message: 'No location found with this id!' });
+      res.status(404).json({ message: 'No category found with this id!' });
     }
     else {
       res.status(200).json({ message: 'Success!' });
