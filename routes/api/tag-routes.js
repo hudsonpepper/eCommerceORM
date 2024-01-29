@@ -68,38 +68,53 @@ router.put('/:id', async (req, res) => {
   //  }
   try {
     if (req.body.tag_name != null || Array.isArray(req.body.products)) {
-      let response, response2;
+      let nameResponse, productResponse;
       if (req.body.tag_name != null) {
         // isolate tag_name to prevent
         // manual setting of id or other body data
         const body = { tag_name: req.body.tag_name }
-        response = await Tag.update(body, {
+        nameResponse = await Tag.update(body, {
           where: { id: req.params.id }
         });
-        if (!response) {
+        if (!nameResponse) {
           res.status(500).json({ message: "No server response from tag_name" })
         }
       }
       if (Array.isArray(req.body.products)) {
-        console.log("length", req.body.products.length);
-        const body = req.body.products.map((x) => {
-          return {
-            product_id: x,
-            tag_id: Number(req.params.id)
-          }
-        })
-        const response3 = await ProductTag.destroy({
-          where: {
-            tag_id: Number(req.params.id)
-          }
-        })
-        console.log(response3)
-        response2 = await ProductTag.bulkCreate(body);
-        if (!response2) {
-          res.status(500).json({ message: "No server response from products array" })
+        const existingProducts = await ProductTag.findAll({
+          where: { tag_id: req.params.id }
+        });
+        const existingProductsIdArr = existingProducts.map(({ product_id }) => product_id)
+        console.log("HERE: ", existingProductsIdArr)
+        
+        const newProducts = req.body.products
+          .filter((product_id) => !existingProductsIdArr.includes(product_id))
+          .map((product_id) => {
+            return {
+              product_id,
+              tag_id: Number(req.params.id)
+            }
+          })
+        const productTagsToRemove = existingProducts
+          .filter(({ product_id }) => !req.body.products.includes(product_id))
+          .map(({ id }) => id);
+
+        productResponse = await Promise.all([
+          ProductTag.destroy({
+            where: {
+              id: productTagsToRemove
+            }
+          }),
+          ProductTag.bulkCreate(newProducts)
+        ])
+        console.log(productResponse)
+        if (!productResponse) {
+          res.status(500).json({ message: "No server response from products array updates" })
         }
       }
-      res.status(200).json({ message: "Success!" })
+      if(nameResponse || productResponse){
+        res.status(200).json({ message: "Success!" })
+      }
     }
     else {
       res.status(400).json({ message: "You need to include a 'tag_name' or a 'products' id array in your body" })
