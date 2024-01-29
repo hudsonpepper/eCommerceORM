@@ -42,16 +42,28 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    res.status(200)
     if (req.body.tag_name == null) {
       res.status(400).json({ message: "You need to include a tag_name in your body" })
     }
     else {
-      const tagData = await Tag.create()
-      if (!tagData) {
-        res.status(404).json({ message: "No tags exist" })
+      const tagData = await Tag.create({tag_name: req.body.tag_name})
+      if(!tagData) {
+        res.status(500).json({message: "Error making tag"})
       }
-      else { res.status(200).json(tagData) }
+      console.log(tagData.id)
+      if(Array.isArray(req.body.products) && req.body.products.length > 0){
+        const body = req.body.products.map((productId) => {
+          return {
+            tag_id: tagData.id,
+            product_id: productId
+          }
+        })
+        const response = await ProductTag.bulkCreate(body)
+        if (!response) {
+          res.status(500).json({message: "Error making associated products"})
+        }
+      }
+      res.status(200).json(tagData)
     }
   }
   catch (err) {
